@@ -4,9 +4,9 @@
 //! every original table row and column, including Core Data metadata and custom fields.
 
 use anyhow::{Context, Ok, Result, bail};
-use postgres::Client;
-use rusqlite::{types::Value, Connection};
 use chrono::{DateTime, NaiveDate, Utc};
+use postgres::Client;
+use rusqlite::{Connection, types::Value};
 
 /// converts dates from coredata/sqlite to postgres
 fn coredata_to_postgres_date(value: Option<String>) -> Option<NaiveDate> {
@@ -17,8 +17,8 @@ fn coredata_to_postgres_date(value: Option<String>) -> Option<NaiveDate> {
         .ok()?
         .with_timezone(&Utc);
 
-    let datetime = apple_epoch
-        + chrono::Duration::milliseconds((timestamp * 1000.0).round() as i64);
+    let datetime =
+        apple_epoch + chrono::Duration::milliseconds((timestamp * 1000.0).round() as i64);
 
     Some(datetime.date_naive())
 }
@@ -28,10 +28,7 @@ fn to_i32(value: Option<i64>) -> Option<i32> {
 }
 
 /// shows postgres errors on commandline, skipped explicit handling
-fn print_postgres_error(
-    result: Result<u64, postgres::Error>,
-    source_id: Option<i64>,
-) {
+fn print_postgres_error(result: Result<u64, postgres::Error>, source_id: Option<i64>) {
     if let Err(e) = result {
         eprintln!("ERROR importing Bookpedia record {:?}", source_id);
         eprintln!("PostgreSQL error: {e}");
@@ -43,9 +40,9 @@ fn print_postgres_error(
 pub fn open_sqlite(path: &str) -> Result<Connection> {
     Ok(Connection::open_with_flags(
         path,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
-            | rusqlite::OpenFlags::SQLITE_OPEN_URI,
-    ).with_context(|| format!("opening SQLite source {path}"))?)
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_URI,
+    )
+    .with_context(|| format!("opening SQLite source {path}"))?)
 }
 
 /// formats table and column names for sql queries
@@ -57,14 +54,18 @@ fn qi(s: &str) -> String {
 pub fn table_names(src: &Connection) -> Result<Vec<String>> {
     let mut stmt = src.prepare(
         "SELECT name FROM sqlite_master
-         WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+         WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
     )?;
     let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
 pub fn row_count(src: &Connection, table: &str) -> Result<i64> {
-    Ok(src.query_row(&format!("SELECT COUNT(*) FROM {}", qi(table)), [], |r| r.get(0))?)
+    Ok(
+        src.query_row(&format!("SELECT COUNT(*) FROM {}", qi(table)), [], |r| {
+            r.get(0)
+        })?,
+    )
 }
 
 #[derive(Debug, Clone)]
@@ -75,10 +76,7 @@ struct Column {
 }
 
 /// get vector of rusqlite columns from a specific table
-fn columns(
-    src: &rusqlite::Connection,
-    table: &str,
-) -> anyhow::Result<Vec<Column>> {
+fn columns(src: &rusqlite::Connection, table: &str) -> anyhow::Result<Vec<Column>> {
     let sql = format!("PRAGMA table_info({})", qi(table));
     let mut stmt = src.prepare(&sql)?;
 
@@ -126,18 +124,20 @@ fn json_value(v: &Value) -> String {
         Value::Null => r#"{"sqlite_type":"null","value":null}"#.into(),
         Value::Integer(n) => format!(r#"{{"sqlite_type":"integer","value":{n}}}"#),
         Value::Real(n) => format!(r#"{{"sqlite_type":"real","value":{n}}}"#),
-        Value::Text(s) => format!(
-            r#"{{"sqlite_type":"text","value":"{}"}}"#, json_escape(s)
-        ),
+        Value::Text(s) => format!(r#"{{"sqlite_type":"text","value":"{}"}}"#, json_escape(s)),
         Value::Blob(b) => format!(
-            r#"{{"sqlite_type":"blob","hex":"{}","length":{}}}"#, hex(b), b.len()
+            r#"{{"sqlite_type":"blob","hex":"{}","length":{}}}"#,
+            hex(b),
+            b.len()
         ),
     }
 }
 
 /// get (primary) key for table from rusqlite format
 fn source_key(cols: &[Column], values: &[Value], ordinal: usize) -> String {
-    let preferred = cols.iter().position(|c| c.name == "Z_PK")
+    let preferred = cols
+        .iter()
+        .position(|c| c.name == "Z_PK")
         .or_else(|| cols.iter().position(|c| c.pk_order > 0));
     if let Some(i) = preferred {
         match &values[i] {
@@ -153,12 +153,16 @@ fn source_key(cols: &[Column], values: &[Value], ordinal: usize) -> String {
 /// convert non-included rows into accessible json entry
 fn row_json(cols: &[Column], values: &[Value]) -> serde_json::Value {
     //keep types while avoiding the warning, cheeky, TODO
-    let _types = cols.iter().zip(values).map(|(c, v)| {
-        format!(r#""{}":{}"#, json_escape(&c.declared_type), json_value(v))
-    }).collect::<Vec<_>>();
-    let fields = cols.iter().zip(values).map(|(c, v)| {
-        format!(r#""{}":{}"#, json_escape(&c.name), json_value(v))
-    }).collect::<Vec<_>>();
+    let _types = cols
+        .iter()
+        .zip(values)
+        .map(|(c, v)| format!(r#""{}":{}"#, json_escape(&c.declared_type), json_value(v)))
+        .collect::<Vec<_>>();
+    let fields = cols
+        .iter()
+        .zip(values)
+        .map(|(c, v)| format!(r#""{}":{}"#, json_escape(&c.name), json_value(v)))
+        .collect::<Vec<_>>();
     let str_json: String = format!("{{{}}}", fields.join(","));
     serde_json::from_str::<serde_json::Value>(str_json.as_str()).expect("Reason") //skip error handling
 }
@@ -166,7 +170,11 @@ fn row_json(cols: &[Column], values: &[Value]) -> serde_json::Value {
 /// extract table as vector of columns and matrix of values
 fn read_table(src: &Connection, table: &str) -> Result<(Vec<Column>, Vec<Vec<Value>>)> {
     let cols = columns(src, table)?;
-    let names = cols.iter().map(|c| qi(&c.name)).collect::<Vec<_>>().join(", ");
+    let names = cols
+        .iter()
+        .map(|c| qi(&c.name))
+        .collect::<Vec<_>>()
+        .join(", ");
     let mut stmt = src.prepare(&format!("SELECT {names} FROM {}", qi(table)))?;
     let mut rows = stmt.query([])?;
     let mut output = Vec::new();
@@ -182,7 +190,8 @@ fn read_table(src: &Connection, table: &str) -> Result<(Vec<Column>, Vec<Vec<Val
 
 /// basic postgres db (target) schema is defined here
 pub fn create_schema(dst: &mut Client) -> Result<()> {
-    dst.batch_execute(r#"
+    dst.batch_execute(
+        r#"
         CREATE TABLE IF NOT EXISTS books (
             id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
             source_bookpedia_id BIGINT NOT NULL UNIQUE,
@@ -256,7 +265,8 @@ pub fn create_schema(dst: &mut Client) -> Result<()> {
 
         CREATE INDEX IF NOT EXISTS books_title_idx ON books(title);
         CREATE INDEX IF NOT EXISTS books_isbn_idx ON books(isbn);
-    "#)?;
+    "#,
+    )?;
     Ok(())
 }
 
@@ -299,16 +309,17 @@ fn blob_at(cols: &[Column], row: &[Value], name: &str) -> Option<Vec<u8>> {
 /// and all original fields also remain in `source_archive`.
 fn import_books(src: &Connection, dst: &mut Client) -> Result<()> {
     let names = table_names(src)?;
-    if !names.iter().any(|n| n == "ZENTRY") { return Ok(()); }
+    if !names.iter().any(|n| n == "ZENTRY") {
+        return Ok(());
+    }
     let (cols, rows) = read_table(src, "ZENTRY")?;
     let mut tx = dst.transaction()?;
     //println!("starting to go through rows {:?}", rows.iter().take(5));
     //println!("starting to go through cols {:?}", cols.iter().take(5));
 
     for row in &rows {
-        let source_id = int_at(&cols, row, "Z_PK")
-            .context("ZENTRY row has no integer Z_PK")?;
-        //TODO: left out for now 
+        let source_id = int_at(&cols, row, "Z_PK").context("ZENTRY row has no integer Z_PK")?;
+        //TODO: left out for now
         // Keep every source attribute, tagged with its original SQLite storage class.
         // let promoted = [
         //     "Z_PK", "ZTITLE", "ZISBN", "ZPUBLISHER", "ZAUTHOR", "ZRELEASEDATE",
@@ -318,8 +329,7 @@ fn import_books(src: &Connection, dst: &mut Client) -> Result<()> {
         //     .map(|(c, v)| format!(r#""{}":{}"#, json_escape(&c.name), json_value(v)))
         //     .collect::<Vec<_>>().join(",");
         let extra_json = serde_json::from_str::<serde_json::Value>("{}")?;
-        
-        
+
         let result: std::prelude::v1::Result<u64, postgres::Error> = tx.execute(
             r#"INSERT INTO books
                (source_bookpedia_id,title,isbn,publisher,author_text,release_date,
@@ -332,17 +342,17 @@ fn import_books(src: &Connection, dst: &mut Client) -> Result<()> {
                  extra_data=EXCLUDED.extra_data"#,
             &[
                 &source_id,
-                &text_at(&cols,row,"ZTITLE"),
-                &text_at(&cols,row,"ZISBN"),
-                &text_at(&cols,row,"ZPUBLISHER"),
-                &text_at(&cols,row,"ZAUTHOR"),
-                &coredata_to_postgres_date(text_at(&cols,row,"ZRELEASEDATE")),
-                &coredata_to_postgres_date(text_at(&cols,row,"ZDATEADDED")),
+                &text_at(&cols, row, "ZTITLE"),
+                &text_at(&cols, row, "ZISBN"),
+                &text_at(&cols, row, "ZPUBLISHER"),
+                &text_at(&cols, row, "ZAUTHOR"),
+                &coredata_to_postgres_date(text_at(&cols, row, "ZRELEASEDATE")),
+                &coredata_to_postgres_date(text_at(&cols, row, "ZDATEADDED")),
                 &extra_json,
-                &blob_at(&cols,row,"ZEXTRADATA"),
+                &blob_at(&cols, row, "ZEXTRADATA"),
             ],
         );
-        let source_id_option:Option<i64> = Some(source_id);
+        let source_id_option: Option<i64> = Some(source_id);
         print_postgres_error(result, source_id_option);
         //println!("finished row {}", source_id);
     }
@@ -353,11 +363,13 @@ fn import_books(src: &Connection, dst: &mut Client) -> Result<()> {
 
 fn import_collections(src: &Connection, dst: &mut Client) -> Result<()> {
     let names = table_names(src)?;
-    if !names.iter().any(|n| n == "ZCOLLECTION") { return Ok(()); }
+    if !names.iter().any(|n| n == "ZCOLLECTION") {
+        return Ok(());
+    }
     let (cols, rows) = read_table(src, "ZCOLLECTION")?;
     let mut tx = dst.transaction()?;
     for row in &rows {
-        let source_id = int_at(&cols,row,"Z_PK").context("ZCOLLECTION row missing Z_PK")?;
+        let source_id = int_at(&cols, row, "Z_PK").context("ZCOLLECTION row missing Z_PK")?;
         let result = tx.execute(
             r#"INSERT INTO collections
                (source_bookpedia_id,name,collection_type,view_type,parent_source_id,url,
@@ -370,11 +382,16 @@ fn import_collections(src: &Connection, dst: &mut Client) -> Result<()> {
                 sort_descriptors=EXCLUDED.sort_descriptors,
                 visible_columns=EXCLUDED.visible_columns, predicate_data=EXCLUDED.predicate_data"#,
             &[
-                &source_id, &text_at(&cols,row,"ZNAME"), &to_i32(int_at(&cols,row,"ZTYPE")),
-                &to_i32(int_at(&cols,row,"ZVIEWTYPE")), &int_at(&cols,row,"ZPARENT"),
-                &text_at(&cols,row,"ZURL"), &blob_at(&cols,row,"ZEXTRADATA"),
-                &blob_at(&cols,row,"ZSORTDESCRIPTORS"), &blob_at(&cols,row,"ZCOLUMNS"),
-                &blob_at(&cols,row,"ZPREDICATEDATA"),
+                &source_id,
+                &text_at(&cols, row, "ZNAME"),
+                &to_i32(int_at(&cols, row, "ZTYPE")),
+                &to_i32(int_at(&cols, row, "ZVIEWTYPE")),
+                &int_at(&cols, row, "ZPARENT"),
+                &text_at(&cols, row, "ZURL"),
+                &blob_at(&cols, row, "ZEXTRADATA"),
+                &blob_at(&cols, row, "ZSORTDESCRIPTORS"),
+                &blob_at(&cols, row, "ZCOLUMNS"),
+                &blob_at(&cols, row, "ZPREDICATEDATA"),
             ],
         );
         let option_source_id: Option<i64> = Some(source_id);
@@ -386,17 +403,24 @@ fn import_collections(src: &Connection, dst: &mut Client) -> Result<()> {
 }
 
 fn import_links(src: &Connection, dst: &mut Client) -> Result<()> {
-    if !table_names(src)?.iter().any(|n| n == "ZLINK") { return Ok(()); }
+    if !table_names(src)?.iter().any(|n| n == "ZLINK") {
+        return Ok(());
+    }
     let (cols, rows) = read_table(src, "ZLINK")?;
     let mut tx = dst.transaction()?;
     for row in &rows {
-        let source_id = int_at(&cols,row,"Z_PK");
-        let book_source_id = int_at(&cols,row,"ZENTRY");
+        let source_id = int_at(&cols, row, "Z_PK");
+        let book_source_id = int_at(&cols, row, "ZENTRY");
         let book_id: Option<i64> = if let Some(source_id) = book_source_id {
-            tx.query_opt("SELECT id FROM books WHERE source_bookpedia_id=$1", &[&source_id])?
-                .map(|r| r.get(0))
-        } else { None };
-        let result  = tx.execute(
+            tx.query_opt(
+                "SELECT id FROM books WHERE source_bookpedia_id=$1",
+                &[&source_id],
+            )?
+            .map(|r| r.get(0))
+        } else {
+            None
+        };
+        let result = tx.execute(
             r#"INSERT INTO book_links
                (source_bookpedia_id,book_id,position,name,link_type,url,related_entry_id)
                VALUES ($1,$2,$3,$4,$5,$6,$7)
@@ -405,9 +429,13 @@ fn import_links(src: &Connection, dst: &mut Client) -> Result<()> {
                 link_type=EXCLUDED.link_type, url=EXCLUDED.url,
                 related_entry_id=EXCLUDED.related_entry_id"#,
             &[
-                &source_id, &book_id, &to_i32(int_at(&cols,row,"ZPOSITION")),
-                &text_at(&cols,row,"ZNAME"), &text_at(&cols,row,"ZTYPE"),
-                &text_at(&cols,row,"ZURL"), &int_at(&cols,row,"Z2_ENTRY"),
+                &source_id,
+                &book_id,
+                &to_i32(int_at(&cols, row, "ZPOSITION")),
+                &text_at(&cols, row, "ZNAME"),
+                &text_at(&cols, row, "ZTYPE"),
+                &text_at(&cols, row, "ZURL"),
+                &int_at(&cols, row, "Z2_ENTRY"),
             ],
         );
         print_postgres_error(result, source_id);
@@ -418,7 +446,9 @@ fn import_links(src: &Connection, dst: &mut Client) -> Result<()> {
 }
 
 fn import_loans(src: &Connection, dst: &mut Client) -> Result<()> {
-    if !table_names(src)?.iter().any(|n| n == "ZLENTENTRY") { return Ok(()); }
+    if !table_names(src)?.iter().any(|n| n == "ZLENTENTRY") {
+        return Ok(());
+    }
     let (cols, rows) = read_table(src, "ZLENTENTRY")?;
     let mut tx = dst.transaction()?;
     for row in &rows {
@@ -445,7 +475,9 @@ fn import_loans(src: &Connection, dst: &mut Client) -> Result<()> {
 }
 
 fn import_recent(src: &Connection, dst: &mut Client) -> Result<()> {
-    if !table_names(src)?.iter().any(|n| n == "ZLASTUSED") { return Ok(()); }
+    if !table_names(src)?.iter().any(|n| n == "ZLASTUSED") {
+        return Ok(());
+    }
     let (cols, rows) = read_table(src, "ZLASTUSED")?;
     let mut tx = dst.transaction()?;
     for row in &rows {
@@ -457,9 +489,11 @@ fn import_recent(src: &Connection, dst: &mut Client) -> Result<()> {
                 book_source_id=EXCLUDED.book_source_id, related_entry_id=EXCLUDED.related_entry_id,
                 used_at=EXCLUDED.used_at, name=EXCLUDED.name"#,
             &[
-                &int_at(&cols,row,"Z_PK"), &int_at(&cols,row,"ZENTRY"),
-                &int_at(&cols,row,"Z2_ENTRY"), &coredata_to_postgres_date(text_at(&cols,row,"ZDATE")),
-                &text_at(&cols,row,"ZNAME"),
+                &int_at(&cols, row, "Z_PK"),
+                &int_at(&cols, row, "ZENTRY"),
+                &int_at(&cols, row, "Z2_ENTRY"),
+                &coredata_to_postgres_date(text_at(&cols, row, "ZDATE")),
+                &text_at(&cols, row, "ZNAME"),
             ],
         );
         let source_id = int_at(&cols, row, "Z_PK");
@@ -512,11 +546,17 @@ pub fn verify(src: &Connection, dst: &mut Client) -> Result<()> {
     println!("\n=== Source-to-archive row counts ===");
     for table in table_names(src)? {
         let source_count = row_count(src, &table)?;
-        let archived_count: i64 = dst.query_one(
-            "SELECT COUNT(*) FROM source_archive WHERE source_table=$1",
-            &[&table],
-        )?.get(0);
-        let status = if source_count == archived_count { "OK" } else { "MISMATCH" };
+        let archived_count: i64 = dst
+            .query_one(
+                "SELECT COUNT(*) FROM source_archive WHERE source_table=$1",
+                &[&table],
+            )?
+            .get(0);
+        let status = if source_count == archived_count {
+            "OK"
+        } else {
+            "MISMATCH"
+        };
         println!("{table}: SQLite={source_count}, archive={archived_count} [{status}]");
         if source_count != archived_count {
             bail!("archive row-count mismatch for {table}");
@@ -532,9 +572,8 @@ pub fn verify(src: &Connection, dst: &mut Client) -> Result<()> {
         }
 
         println!("\n=== Sample book values ===");
-        let mut stmt = src.prepare(
-            "SELECT Z_PK, ZTITLE, ZISBN, ZPUBLISHER FROM ZENTRY ORDER BY Z_PK LIMIT 5"
-        )?;
+        let mut stmt = src
+            .prepare("SELECT Z_PK, ZTITLE, ZISBN, ZPUBLISHER FROM ZENTRY ORDER BY Z_PK LIMIT 5")?;
         let samples = stmt.query_map([], |r| -> rusqlite::Result<_> {
             rusqlite::Result::Ok((
                 r.get::<_, i64>(0)?,
@@ -554,9 +593,13 @@ pub fn verify(src: &Connection, dst: &mut Client) -> Result<()> {
                 (target.get(0), target.get(1), target.get(2));
             let expected = (title, isbn, publisher);
             let matches = expected == actual;
-            println!("source_id={source_id}: expected={expected:?}; actual={actual:?}; {}",
-                if matches { "MATCH" } else { "MISMATCH" });
-            if !matches { bail!("sample field mismatch for source ID {source_id}"); }
+            println!(
+                "source_id={source_id}: expected={expected:?}; actual={actual:?}; {}",
+                if matches { "MATCH" } else { "MISMATCH" }
+            );
+            if !matches {
+                bail!("sample field mismatch for source ID {source_id}");
+            }
         }
     }
     println!("\nVerification passed.");

@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Bookpedia</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #f3f4f6;
+            color: #252525;
+            font-family: Arial, sans-serif;
+        }
+
+        header {
+            background: #252c35;
+            color: white;
+            padding: 22px 35px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 25px;
+        }
+
+        .container {
+            max-width: 1300px;
+            margin: auto;
+            padding: 30px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        input,
+        textarea {
+            padding: 11px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font: inherit;
+            width: 100%;
+        }
+
+        .search {
+            flex: 1;
+        }
+
+        button {
+            background: #34495e;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 11px 18px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #46627e;
+        }
+
+        .book-cover {
+            width: 55px;
+            height: 75px;
+            object-fit: contain;
+            flex-shrink: 0;
+            background: #eee;
+        }
+
+        .book-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .book-title {
+            font-size: 16px;
+            font-weight: bold;
+            line-height: 1.4;
+            overflow-wrap: anywhere;
+        }
+
+        .book-edit {
+            margin-left: 10px;
+            flex-shrink: 0;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #0008;
+            overflow-y: auto;
+            padding: 25px;
+            z-index: 10;
+        }
+
+        .modal-content {
+            background: white;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 25px;
+            border-radius: 9px;
+        }
+
+        .modal-content label {
+            display: block;
+            margin: 12px 0 5px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .modal-content textarea {
+            min-height: 100px;
+        }
+
+        .form-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .form-buttons button {
+            flex: 1;
+        }
+
+        .cancel {
+            background: #777;
+        }
+
+        #status {
+            margin: 15px 0;
+            color: #666;
+        }
+
+        #bookList {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .book-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .book-cover {
+            width: 55px;
+            height: 75px;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+
+        .book-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .book-title {
+            font-size: 16px;
+            font-weight: bold;
+            line-height: 1.4;
+            overflow-wrap: anywhere;
+        }
+
+        .book-details {
+            margin-top: 5px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .book-authors {
+            margin-top: 5px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .book-metadata {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-top: 5px;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .book-date {
+            text-align: left;
+        }
+
+        .book-isbn {
+            text-align: right;
+            overflow-wrap: anywhere;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>📚 bookdb-rust</h1>
+        <small>Persönliche Bibliothek</small>
+    </header>
+
+    <div class="container">
+
+        <h2>My Library</h2>
+
+        <div class="toolbar">
+            <input id="search" class="search" placeholder="Search by title or author...">
+
+            <button onclick="openNewBook()">
+                + Add Book
+            </button>
+        </div>
+
+        <div id="status">Loading books...</div>
+
+        <div id="books"></div>
+
+    </div>
+
+
+    <!-- Book form -->
+
+    <div id="modal" class="modal">
+
+        <div class="modal-content">
+
+            <h2 id="form-title">Add Book</h2>
+
+            <form id="book-form">
+                <label>Bookpedia ID *</label>
+                <input id="source_bookpedia_id" type="number" required>
+
+                <label>Title *</label>
+                <input id="title" required>
+
+                <label>Author</label>
+                <input id="author">
+
+                <label>ISBN</label>
+                <input id="isbn">
+
+                <label>Publisher</label>
+                <input id="publisher">
+
+                <label>Publication year</label>
+                <input id="year" type="number">
+
+                <label>Genre</label>
+                <input id="genre">
+
+                <label>Description</label>
+                <textarea id="description"></textarea>
+
+                <div class="form-buttons">
+                    <button type="submit">Save Book</button>
+
+                    <button type="button" class="cancel" onclick="closeModal()">
+                        Cancel
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+
+
+    <script>
+
+        let editingId = null;
+        let searchTimer = null;
+
+
+        // Load books from PostgreSQL
+
+        async function loadBooks() {
+
+            const query =
+                document.getElementById("search").value;
+
+            const status =
+                document.getElementById("status");
+
+            status.textContent = "Loading...";
+
+            try {
+
+                const response = await fetch(
+                    "/api/books?q=" + encodeURIComponent(query)
+                );
+
+                if (!response.ok) {
+                    throw new Error("Could not retrieve books");
+                }
+
+                const books = await response.json();
+
+                const container =
+                    document.getElementById("books");
+
+                container.replaceChildren();
+
+                status.textContent =
+                    books.length + " books found";
+
+                books.forEach(book => {
+
+                    // One horizontal row per book
+                    const row = document.createElement("div");
+                    row.className = "book-row";
+
+                    // Cover image
+                    const cover = document.createElement("img");
+                    cover.className = "book-cover";
+                    cover.src = `../covers/${book.source_bookpedia_id}.jpg`;
+                    cover.alt = book.title || "Book cover";
+
+                    cover.onerror = () => {
+                        cover.removeAttribute("src");
+                        cover.alt = "No cover available";
+                    };
+
+                    // Text information
+                    const info = document.createElement("div");
+                    info.className = "book-info";
+
+                    // First line: title
+                    const title = document.createElement("div");
+                    title.className = "book-title";
+                    title.textContent = book.title || "Untitled";
+
+                    // Second line: author list
+                    const authors = document.createElement("div");
+                    authors.className = "book-authors";
+                    authors.textContent = book.author_text || "Unknown author";
+
+                    // Third line: date (left) and ISBN (right)
+                    const metadata = document.createElement("div");
+                    metadata.className = "book-metadata";
+
+                    // Format YYYY-MM-DD as DD.MM.YYYY
+                    const date = document.createElement("div");
+                    date.className = "book-date";
+
+                    if (book.release_date) {
+                        const parts = book.release_date.substring(0, 10).split("-");
+                        date.textContent = `${parts[2]}.${parts[1]}.${parts[0]}`;
+                    } else {
+                        date.textContent = "";
+                    }
+
+                    // ISBN, preserving its original format
+                    const isbn = document.createElement("div");
+                    isbn.className = "book-isbn";
+                    isbn.textContent = book.isbn || "";
+
+                    // Assemble metadata
+                    metadata.append(date, isbn);
+
+                    // Assemble text information
+                    info.append(title, authors, metadata);
+
+                    // Edit button
+                    const edit = document.createElement("button");
+                    edit.className = "book-edit";
+                    edit.textContent = "Edit";
+                    edit.addEventListener("click", () => editBook(book));
+
+                    // Assemble row
+                    info.append(title, authors, metadata);
+                    row.append(cover, info, edit);
+
+                    container.appendChild(row);
+                });
+
+            } catch (error) {
+                status.textContent = error.message;
+            }
+        }
+
+
+        // Search while typing
+
+        document.getElementById("search")
+            .addEventListener("input", () => {
+
+                clearTimeout(searchTimer);
+
+                searchTimer = setTimeout(loadBooks, 250);
+            });
+
+
+        // Open empty form
+
+        function openNewBook() {
+
+            editingId = null;
+
+            document.getElementById("form-title").textContent =
+                "Add New Book";
+
+            document.getElementById("book-form").reset();
+
+            document.getElementById("modal").style.display =
+                "block";
+        }
+
+
+        // Open form with existing book data
+
+        function editBook(book) {
+
+            editingId = book.id;
+
+            document.getElementById("source_bookpedia_id").value =
+                book.source_bookpedia_id;
+
+            document.getElementById("title").value =
+                book.title || "";
+
+            document.getElementById("author").value =
+                book.author_text || "";
+
+            document.getElementById("isbn").value =
+                book.isbn || "";
+
+            document.getElementById("publisher").value =
+                book.publisher || "";
+
+            document.getElementById("year").value =
+                book.publication_year ?? "";
+
+            document.getElementById("genre").value =
+                book.genre || "";
+
+            document.getElementById("description").value =
+                book.description || "";
+
+            document.getElementById("modal").style.display =
+                "block";
+        }
+
+
+        function closeModal() {
+
+            document.getElementById("modal").style.display =
+                "none";
+        }
+
+
+        // Save new or modified book
+
+        document.getElementById("book-form")
+            .addEventListener("submit", async event => {
+
+                event.preventDefault();
+
+                const book = {
+                    source_bookpedia_id: Number(
+                        document.getElementById("source_bookpedia_id").value
+                    ),
+
+                    title: document.getElementById("title").value,
+                    author_text: optionalValue("author"),
+                    isbn: optionalValue("isbn"),
+                    publisher: optionalValue("publisher"),
+
+                    release_date: null,
+                    date_added: null,
+                    extra_fields: {}
+                };
+
+                const url = editingId
+                    ? `/api/books/${editingId}`
+                    : "/api/books";
+
+                const method = editingId ? "PUT" : "POST";
+
+                try {
+
+                    const response = await fetch(url, {
+
+                        method: method,
+
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+
+                        body: JSON.stringify(book)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(
+                            "Could not save book (HTTP " +
+                            response.status + ")"
+                        );
+                    }
+
+                    closeModal();
+
+                    await loadBooks();
+
+                } catch (error) {
+
+                    alert(error.message);
+                }
+            });
+
+
+        function optionalValue(id) {
+
+            const value = document.getElementById(id).value.trim();
+
+            return value === "" ? null : value;
+        }
+
+
+        // Initial load
+
+        loadBooks();
+
+    </script>
+
+</body>
+
+</html>
