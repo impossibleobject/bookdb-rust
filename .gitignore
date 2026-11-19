@@ -23,3 +23,5 @@ small_tests.rs
 Database.bookpd
 db
 covers/*
+temp*
+bookpd_schema.txt

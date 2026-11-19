@@ -251,20 +251,38 @@
                 <label>Author</label>
                 <input id="author">
 
+                <label>Publishing House</label>
+                <input id="publishing_house">
+
+                <label>Series</label>
+                <input id="series">
+
+                <label>Edition</label>
+                <input id="edition">
+
+                <label>Format</label>
+                <input id="format">
+
                 <label>ISBN</label>
                 <input id="isbn">
 
                 <label>Publisher</label>
                 <input id="publisher">
 
-                <label>Publication year</label>
-                <input id="year" type="number">
-
                 <label>Genre</label>
                 <input id="genre">
 
-                <label>Description</label>
-                <textarea id="description"></textarea>
+                <label>Pages</label>
+                <input id="pages" type="number">
+
+                <label>Topics</label>
+                <input id="topics">
+
+                <label>Comments</label>
+                <textarea id="comments"></textarea>
+
+                <label>Summary</label>
+                <textarea id="summary"></textarea>
 
                 <div class="form-buttons">
                     <button type="submit">Save Book</button>
@@ -428,13 +446,25 @@
             editingId = book.id;
 
             document.getElementById("source_bookpedia_id").value =
-                book.source_bookpedia_id;
+                book.bookpedia_id;
 
             document.getElementById("title").value =
                 book.title || "";
 
             document.getElementById("author").value =
-                book.author_text || "";
+                book.author || "";
+
+            document.getElementById("publishing_house").value =
+                book.publishing_house || "";
+
+            document.getElementById("series").value =
+                book.series || "";
+
+            document.getElementById("edition").value =
+                book.edition || "";
+
+            document.getElementById("format").value =
+                book.format || "";
 
             document.getElementById("isbn").value =
                 book.isbn || "";
@@ -442,18 +472,25 @@
             document.getElementById("publisher").value =
                 book.publisher || "";
 
-            document.getElementById("year").value =
-                book.publication_year ?? "";
-
             document.getElementById("genre").value =
                 book.genre || "";
 
-            document.getElementById("description").value =
-                book.description || "";
+            document.getElementById("pages").value =
+                book.pages ?? "";
+
+            document.getElementById("topics").value =
+                book.topics || "";
+
+            document.getElementById("comments").value =
+                book.comments || "";
+
+            document.getElementById("summary").value =
+                book.summary || "";
 
             document.getElementById("modal").style.display =
                 "block";
         }
+
 
 
         function closeModal() {
@@ -471,19 +508,28 @@
                 event.preventDefault();
 
                 const book = {
-                    source_bookpedia_id: Number(
+                    bookpedia_id: Number(
                         document.getElementById("source_bookpedia_id").value
                     ),
 
                     title: document.getElementById("title").value,
-                    author_text: optionalValue("author"),
+                    author: optionalValue("author"),
+                    publishing_house: optionalValue("publishing_house"),
+                    series: optionalValue("series"),
+                    edition: optionalValue("edition"),
+                    format: optionalValue("format"),
                     isbn: optionalValue("isbn"),
                     publisher: optionalValue("publisher"),
-
+                    genre: optionalValue("genre"),
+                    pages: document.getElementById("pages").value ? parseInt(document.getElementById("pages").value) : null,
+                    topics: optionalValue("topics"),
+                    comments: optionalValue("comments"),
+                    summary: optionalValue("summary"),
                     release_date: null,
                     date_added: null,
                     extra_fields: {}
                 };
+
 
                 const url = editingId
                     ? `/api/books/${editingId}`

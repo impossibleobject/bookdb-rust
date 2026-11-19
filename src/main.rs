@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use dotenvy;
 use std::{env, error::Error, net::SocketAddr, sync::Arc};
 use tokio_postgres::{Client, NoTls};
+use postgres;
 
 use axum::{
     Json, Router,
@@ -30,27 +31,44 @@ type Db = Arc<Client>;
 #[derive(Debug, Serialize)]
 struct Book {
     id: i64,
-    source_bookpedia_id: i64,
+    bookpedia_id: i64,
     title: Option<String>,
-    isbn: Option<String>,
-    publisher: Option<String>,
-    author_text: Option<String>,
+    author: Option<String>,
+    publishing_house: Option<String>,
+    series: Option<String>,
+    edition: Option<String>,
+    format: Option<String>,
     release_date: Option<NaiveDate>,
-    date_added: Option<NaiveDate>,
+    publisher: Option<String>,
+    genre: Option<String>,
+    pages: Option<i32>,
+    isbn: Option<String>,
+    topics: Option<String>,
+    comments: Option<String>,
+    summary: Option<String>,
     extra_fields: serde_json::Value,
 }
 
 #[derive(Debug, Deserialize)]
 struct BookInput {
-    source_bookpedia_id: Option<i64>,
+    bookpedia_id: Option<i64>,
     title: Option<String>,
-    isbn: Option<String>,
-    publisher: Option<String>,
-    author_text: Option<String>,
+    author: Option<String>,
+    publishing_house: Option<String>,
+    series: Option<String>,
+    edition: Option<String>,
+    format: Option<String>,
     release_date: Option<NaiveDate>,
-    date_added: Option<NaiveDate>,
+    publisher: Option<String>,
+    genre: Option<String>,
+    pages: Option<i32>,
+    isbn: Option<String>,
+    topics: Option<String>,
+    comments: Option<String>,
+    summary: Option<String>,
     extra_fields: Option<serde_json::Value>,
 }
+
 
 #[derive(Debug, Deserialize)]
 struct SearchQuery {
@@ -74,17 +92,25 @@ async fn list_books(
             "
         SELECT
             id,
-            source_bookpedia_id,
+            bookpedia_id,
             title,
-            isbn,
-            publisher,
-            author_text,
+            author,
+            publishing_house,
+            series,
+            edition,
+            format,
             release_date,
-            date_added,
+            publisher,
+            genre,
+            pages,
+            isbn,
+            topics,
+            comments,
+            summary,
             extra_fields
         FROM books
         WHERE COALESCE(title, '') ILIKE $1
-           OR COALESCE(author_text, '') ILIKE $1
+           OR COALESCE(author, '') ILIKE $1
         ORDER BY title ASC
         LIMIT 500
         ",
@@ -100,13 +126,21 @@ async fn list_books(
         .iter()
         .map(|row| Book {
             id: row.get("id"),
-            source_bookpedia_id: row.get("source_bookpedia_id"),
+            bookpedia_id: row.get("bookpedia_id"),
             title: row.get("title"),
-            isbn: row.get("isbn"),
-            publisher: row.get("publisher"),
-            author_text: row.get("author_text"),
+            author: row.get("author"),
+            publishing_house: row.get("publishing_house"),
+            series: row.get("series"),
+            edition: row.get("edition"),
+            format: row.get("format"),
             release_date: row.get("release_date"),
-            date_added: row.get("date_added"),
+            publisher: row.get("publisher"),
+            genre: row.get("genre"),
+            pages: row.get("pages"),
+            isbn: row.get("isbn"),
+            topics: row.get("topics"),
+            comments: row.get("comments"),
+            summary: row.get("summary"),
             extra_fields: row.get("extra_fields"),
         })
         .collect();
@@ -124,7 +158,7 @@ async fn create_book(
         .filter(|t| !t.trim().is_empty())
         .ok_or(StatusCode::BAD_REQUEST)?;
 
-    let source_id = book.source_bookpedia_id.ok_or(StatusCode::BAD_REQUEST)?;
+    let bookpedia_id = book.bookpedia_id.ok_or(StatusCode::BAD_REQUEST)?;
 
     let extra_fields = book.extra_fields.unwrap_or_else(|| serde_json::json!({}));
 
@@ -132,35 +166,59 @@ async fn create_book(
         .query_one(
             "
         INSERT INTO books (
-            source_bookpedia_id,
+            bookpedia_id,
             title,
-            isbn,
-            publisher,
-            author_text,
+            author,
+            publishing_house,
+            series,
+            edition,
+            format,
             release_date,
-            date_added,
+            publisher,
+            genre,
+            pages,
+            isbn,
+            topics,
+            comments,
+            summary,
             extra_fields
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         RETURNING
             id,
-            source_bookpedia_id,
+            bookpedia_id,
             title,
-            isbn,
-            publisher,
-            author_text,
+            author,
+            publishing_house,
+            series,
+            edition,
+            format,
             release_date,
-            date_added,
+            publisher,
+            genre,
+            pages,
+            isbn,
+            topics,
+            comments,
+            summary,
             extra_fields
         ",
             &[
-                &source_id,
+                &bookpedia_id,
                 &title,
-                &book.isbn,
-                &book.publisher,
-                &book.author_text,
+                &book.author,
+                &book.publishing_house,
+                &book.series,
+                &book.edition,
+                &book.format,
                 &book.release_date,
-                &book.date_added,
+                &book.publisher,
+                &book.genre,
+                &book.pages,
+                &book.isbn,
+                &book.topics,
+                &book.comments,
+                &book.summary,
                 &extra_fields,
             ],
         )
@@ -172,16 +230,25 @@ async fn create_book(
 
     Ok(Json(Book {
         id: row.get("id"),
-        source_bookpedia_id: row.get("source_bookpedia_id"),
+        bookpedia_id: row.get("bookpedia_id"),
         title: row.get("title"),
-        isbn: row.get("isbn"),
-        publisher: row.get("publisher"),
-        author_text: row.get("author_text"),
+        author: row.get("author"),
+        publishing_house: row.get("publishing_house"),
+        series: row.get("series"),
+        edition: row.get("edition"),
+        format: row.get("format"),
         release_date: row.get("release_date"),
-        date_added: row.get("date_added"),
+        publisher: row.get("publisher"),
+        genre: row.get("genre"),
+        pages: row.get("pages"),
+        isbn: row.get("isbn"),
+        topics: row.get("topics"),
+        comments: row.get("comments"),
+        summary: row.get("summary"),
         extra_fields: row.get("extra_fields"),
     }))
 }
+
 
 // Update existing book via browser
 async fn update_book(
@@ -202,31 +269,55 @@ async fn update_book(
         UPDATE books
         SET
             title = $1,
-            isbn = $2,
-            publisher = $3,
-            author_text = $4,
-            release_date = $5,
-            date_added = $6,
-            extra_fields = $7
-        WHERE id = $8
+            author = $2,
+            publishing_house = $3,
+            series = $4,
+            edition = $5,
+            format = $6,
+            release_date = $7,
+            publisher = $8,
+            genre = $9,
+            pages = $10,
+            isbn = $11,
+            topics = $12,
+            comments = $13,
+            summary = $14,
+            extra_fields = $15
+        WHERE id = $16
         RETURNING
             id,
-            source_bookpedia_id,
+            bookpedia_id,
             title,
-            isbn,
-            publisher,
-            author_text,
+            author,
+            publishing_house,
+            series,
+            edition,
+            format,
             release_date,
-            date_added,
+            publisher,
+            genre,
+            pages,
+            isbn,
+            topics,
+            comments,
+            summary,
             extra_fields
         ",
             &[
                 &title,
-                &book.isbn,
-                &book.publisher,
-                &book.author_text,
+                &book.author,
+                &book.publishing_house,
+                &book.series,
+                &book.edition,
+                &book.format,
                 &book.release_date,
-                &book.date_added,
+                &book.publisher,
+                &book.genre,
+                &book.pages,
+                &book.isbn,
+                &book.topics,
+                &book.comments,
+                &book.summary,
                 &extra_fields,
                 &id,
             ],
@@ -241,13 +332,21 @@ async fn update_book(
 
     Ok(Json(Book {
         id: row.get("id"),
-        source_bookpedia_id: row.get("source_bookpedia_id"),
+        bookpedia_id: row.get("bookpedia_id"),
         title: row.get("title"),
-        isbn: row.get("isbn"),
-        publisher: row.get("publisher"),
-        author_text: row.get("author_text"),
+        author: row.get("author"),
+        publishing_house: row.get("publishing_house"),
+        series: row.get("series"),
+        edition: row.get("edition"),
+        format: row.get("format"),
         release_date: row.get("release_date"),
-        date_added: row.get("date_added"),
+        publisher: row.get("publisher"),
+        genre: row.get("genre"),
+        pages: row.get("pages"),
+        isbn: row.get("isbn"),
+        topics: row.get("topics"),
+        comments: row.get("comments"),
+        summary: row.get("summary"),
         extra_fields: row.get("extra_fields"),
     }))
 }
@@ -284,7 +383,7 @@ async fn execute_query(
     Ok(Json(json))
 }
 
-#[tokio::main]
+#[tokio::main] //
 async fn main() -> Result<(), Box<dyn Error>> {
     // migrate and verify database from sqlite "Database.bookpd" file (READ ONLY access)
     //to existing postgres database accessed via URL in .env
@@ -295,8 +394,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .expect("Release")
         .to_string();
 
-    // run migration of sqlite into postgres
-    // let mut target: Client = Client::connect(&postgres_url, NoTls)
+
+
+    // // run migration of sqlite into postgres
+    // let mut target: postgres::Client = postgres::Client::connect(&postgres_url, NoTls)
     //     .context("connecting to PostgreSQL; create the target database first").expect("Release");
 
     // let bookpd_path = env::var("BOOKPD_PATH").context("BOOKPD_PATH is missing; create .env").expect("Release").to_string();
@@ -332,6 +433,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("Bookpedia running at http://localhost:3000");
 
     axum::serve(listener, app).await?;
+
+
 
     Ok(())
 }
