@@ -32,6 +32,7 @@ type Db = Arc<Client>;
 struct Book {
     id: i64,
     bookpedia_id: i64,
+    cover_id: Option<i64>,
     title: Option<String>,
     author: Option<String>,
     publishing_house: Option<String>,
@@ -52,6 +53,7 @@ struct Book {
 #[derive(Debug, Deserialize)]
 struct BookInput {
     bookpedia_id: Option<i64>,
+    cover_id: Option<i64>,
     title: Option<String>,
     author: Option<String>,
     publishing_house: Option<String>,
@@ -93,6 +95,7 @@ async fn list_books(
         SELECT
             id,
             bookpedia_id,
+            cover_id,
             title,
             author,
             publishing_house,
@@ -127,6 +130,7 @@ async fn list_books(
         .map(|row| Book {
             id: row.get("id"),
             bookpedia_id: row.get("bookpedia_id"),
+            cover_id: row.get("cover_id"),
             title: row.get("title"),
             author: row.get("author"),
             publishing_house: row.get("publishing_house"),
@@ -159,6 +163,7 @@ async fn create_book(
         .ok_or(StatusCode::BAD_REQUEST)?;
 
     let bookpedia_id = book.bookpedia_id.ok_or(StatusCode::BAD_REQUEST)?;
+    let cover_id = book.cover_id.ok_or(StatusCode::BAD_REQUEST)?;
 
     let extra_fields = book.extra_fields.unwrap_or_else(|| serde_json::json!({}));
 
@@ -167,6 +172,7 @@ async fn create_book(
             "
         INSERT INTO books (
             bookpedia_id,
+            cover_id,
             title,
             author,
             publishing_house,
@@ -187,6 +193,7 @@ async fn create_book(
         RETURNING
             id,
             bookpedia_id,
+            cover_id,
             title,
             author,
             publishing_house,
@@ -205,6 +212,7 @@ async fn create_book(
         ",
             &[
                 &bookpedia_id,
+                &cover_id,
                 &title,
                 &book.author,
                 &book.publishing_house,
@@ -231,6 +239,7 @@ async fn create_book(
     Ok(Json(Book {
         id: row.get("id"),
         bookpedia_id: row.get("bookpedia_id"),
+        cover_id: row.get("cover_id"),
         title: row.get("title"),
         author: row.get("author"),
         publishing_house: row.get("publishing_house"),
@@ -268,11 +277,12 @@ async fn update_book(
             "
         UPDATE books
         SET
-            title = $1,
-            author = $2,
-            publishing_house = $3,
-            series = $4,
-            edition = $5,
+            cover_id = $1,
+            title = $2,
+            author = $3,
+            publishing_house = $4,
+            series = $5,
+            edition = $6,
             format = $6,
             release_date = $7,
             publisher = $8,
@@ -287,6 +297,7 @@ async fn update_book(
         RETURNING
             id,
             bookpedia_id,
+            cover_id,
             title,
             author,
             publishing_house,
@@ -304,6 +315,7 @@ async fn update_book(
             extra_fields
         ",
             &[
+                &book.cover_id,
                 &title,
                 &book.author,
                 &book.publishing_house,
@@ -333,6 +345,7 @@ async fn update_book(
     Ok(Json(Book {
         id: row.get("id"),
         bookpedia_id: row.get("bookpedia_id"),
+        cover_id: row.get("cover_id"),
         title: row.get("title"),
         author: row.get("author"),
         publishing_house: row.get("publishing_house"),
@@ -405,6 +418,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // let _ = migrate_database::migrate(&source, &mut target);
     // let _ = migrate_database::verify(&source, &mut target);
+
+
 
     // run browser interface on localhost
     // connect to PostgreSQL

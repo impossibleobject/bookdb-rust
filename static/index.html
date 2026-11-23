@@ -243,7 +243,10 @@
 
             <form id="book-form">
                 <label>Bookpedia ID *</label>
-                <input id="source_bookpedia_id" type="number" required>
+                <input id="bookpedia_id" type="number" required>
+
+                <label>Cover ID</label>
+                <input id="cover_id" type="number">
 
                 <label>Title *</label>
                 <input id="title" required>
@@ -345,7 +348,7 @@
                     // Cover image
                     const cover = document.createElement("img");
                     cover.className = "book-cover";
-                    cover.src = `../covers/${book.source_bookpedia_id}.jpg`;
+                    cover.src = `../covers/${book.cover_id}.jpg`;
                     cover.alt = book.title || "Book cover";
 
                     cover.onerror = () => {
@@ -365,7 +368,7 @@
                     // Second line: author list
                     const authors = document.createElement("div");
                     authors.className = "book-authors";
-                    authors.textContent = book.author_text || "Unknown author";
+                    authors.textContent = book.author || "Unknown author";
 
                     // Third line: date (left) and ISBN (right)
                     const metadata = document.createElement("div");
@@ -445,9 +448,12 @@
 
             editingId = book.id;
 
-            document.getElementById("source_bookpedia_id").value =
+            document.getElementById("bookpedia_id").value =
                 book.bookpedia_id;
 
+            document.getElementById("cover_id").value =
+                book.cover_id || "";
+                
             document.getElementById("title").value =
                 book.title || "";
 
@@ -509,9 +515,10 @@
 
                 const book = {
                     bookpedia_id: Number(
-                        document.getElementById("source_bookpedia_id").value
+                        document.getElementById("bookpedia_id").value
                     ),
 
+                    cover_id: document.getElementById("cover_id").value ? parseInt(document.getElementById("cover_id").value) : null,
                     title: document.getElementById("title").value,
                     author: optionalValue("author"),
                     publishing_house: optionalValue("publishing_house"),
