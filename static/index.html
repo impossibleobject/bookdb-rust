@@ -27,7 +27,7 @@
 
         header h1 {
             margin: 0;
-            font-size: 25px;
+            font-size: 20px;
         }
 
         .container {
@@ -44,7 +44,7 @@
 
         input,
         textarea {
-            padding: 11px;
+            padding: 6px;
             border: 1px solid #ccc;
             border-radius: 5px;
             font: inherit;
@@ -87,7 +87,7 @@
         }
 
         .book-title {
-            font-size: 16px;
+            font-size: 20px;
             font-weight: bold;
             line-height: 1.4;
             overflow-wrap: anywhere;
@@ -100,34 +100,89 @@
             inset: 0;
             background: #0008;
             overflow-y: auto;
-            padding: 25px;
+            padding: 5px;
             z-index: 10;
         }
 
         .modal-content {
             background: white;
-            max-width: 600px;
-            margin: 20px auto;
-            padding: 25px;
-            border-radius: 9px;
+            /* Change max-width to a much larger value or 'none' */
+            max-width: 95%; 
+            margin: 1% auto;
+            padding: 3px;
+            border-radius: 3px;
+            /* Ensure the modal can expand horizontally */
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            min-height: 95vh;
+        }
+
+        /* Add this to make the form take up all available space */
+        #book-form {
+            flex: 1; /* This tells the form to take up all available space */
+            display: flex;
+            flex-direction: column;
+            margin: 0;
+            min-width: 0;
+        }
+
+        #book-form label {
+            display: block;
+            margin: 0;           /* Remove all margins */
+            padding: 0;          /* Remove all padding */
+            font-weight: bold;
+            line-height: 1.2;    /* Tighten the line height */
+        }
+
+        #book-form input, 
+        #book-form textarea {
+            margin: 0;           /* Remove all margins */
+            padding: 4px;        /* Small padding inside the box for readability */
+            display: block;
+            width: 100%;
+            box-sizing: border-box; /* Ensures padding doesn't increase width */
+        }
+
+        /* This is the container for all your inputs */
+        .form-fields-container {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1; /* This tells the inputs to take up all space EXCEPT what the buttons need */
         }
 
         .modal-content label {
             display: block;
-            margin: 12px 0 5px;
-            font-size: 13px;
+            margin: 2px 0 0px;
+            font-size: 10px;
             font-weight: bold;
         }
 
         .modal-content textarea {
             min-height: 100px;
+            max-height: 2000px;
+            overflow: hidden;
+            /* This allows the textarea to take up the full width of its container */
+            width: 100%;
+            /* Optional: if you want the text to wrap naturally */
+            white-space: pre-wrap;
+            word-break: break-word;
+            resize: none;
+            display: block;
+            margin-bottom: 0;
+            height: auto;
         }
 
         .form-buttons {
             display: flex;
             gap: 10px;
-            margin-top: 20px;
+            padding-top: 10px;
+            margin-top: 10px;
+            border-top: 1px solid #eee;
+            flex-shrink: 0; /* Prevents the buttons from being squashed */
         }
+
 
         .form-buttons button {
             flex: 1;
@@ -169,7 +224,7 @@
         }
 
         .book-title {
-            font-size: 16px;
+            font-size: 20px;
             font-weight: bold;
             line-height: 1.4;
             overflow-wrap: anywhere;
@@ -235,62 +290,63 @@
 
 
     <!-- Book form -->
-
     <div id="modal" class="modal">
         <div class="modal-content">
-            <h2 id="form-title">Add Book</h2>
 
-            <!-- New layout: Flex container to put image on the left -->
-            <div style="display: flex; gap: 20px; align-items: flex-start;">
+            <!-- Use a flex container that allows the form to grow -->
+            <div style="display: flex; gap: 30px; align-items: flex-start; width: 100%;">
                 
-                <!-- Large Cover Image Container -->
+                <!-- Large Cover Image -->
                 <div style="flex-shrink: 0;">
-                    <img id="modal-cover" src="" alt="Cover" style="width: 150px; height: 225px; object-fit: contain; border: 1px solid #ddd; border-radius: 5px; background: #eee;">
+                    <img id="modal-cover" src="" alt="Cover" 
+                        style="width: 200px; height: 300px; object-fit: contain; border: 1px solid #ddd; border-radius: 5px; background: #eee;">
                 </div>
 
                 <!-- Form Fields Container -->
-                <form id="book-form" style="flex: 1; margin: 0;">
-                    <label>Title *</label>
-                    <input id="title" required>
+                <!-- 'flex: 1' allows this side to take up all remaining horizontal space -->
+                <form id="book-form" style="flex: 1; margin: 0; min-width: 0;">
+                    <div class="form-fields-container">
+                        <input id="title" required style="font-size: 1.2em; font-weight: bold; outline: none;">
 
-                    <label>Author</label>
-                    <input id="author">
+                        <label>Author</label>
+                        <input id="author">
 
-                    <label>Publishing House</label>
-                    <input id="publishing_house">
+                        <label>Publisher</label>
+                        <input id="publisher">
 
-                    <label>Series</label>
-                    <input id="series">
+                        <label>Series</label>
+                        <input id="series">
 
-                    <label>Edition</label>
-                    <input id="edition">
+                        <label>Edition</label>
+                        <input id="edition">
 
-                    <label>Format</label>
-                    <input id="format">
+                        <label>Format</label>
+                        <input id="format">
 
-                    <label>Release Date</label>
-                    <input id="release_date" type="date">
+                        <label>Release Date</label>
+                        <input id="release_date" type="date">
 
-                    <label>Publisher</label>
-                    <input id="publisher">
+                        <label>Publishing House</label>
+                        <input id="publishing_house">
 
-                    <label>Genre</label>
-                    <input id="genre">
+                        <label>Genre</label>
+                        <input id="genre">
 
-                    <label>Pages</label>
-                    <input id="pages" type="number">
+                        <label>Pages</label>
+                        <input id="pages" type="number">
 
-                    <label>ISBN</label>
-                    <input id="isbn">
+                        <label>ISBN</label>
+                        <input id="isbn">
 
-                    <label>Topics</label>
-                    <input id="topics">
+                        <label>Topics</label>
+                        <input id="topics">
 
-                    <label>Comments</label>
-                    <textarea id="comments"></textarea>
+                        <label>Comments</label>
+                        <textarea id="comments"></textarea>
 
-                    <label>Summary</label>
-                    <textarea id="summary"></textarea>
+                        <label>Summary</label>
+                        <textarea id="summary"></textarea>
+                    </div>
 
                     <div class="form-buttons">
                         <button type="submit">Save Book</button>
@@ -303,15 +359,24 @@
         </div>
     </div>
 
-
     <script>
 
         let editingId = null;
         let searchTimer = null;
 
 
-        // Load books from PostgreSQL
+        function autoResizeTextarea(textarea) {
+            // Reset height to allow scrollHeight to be recalculated correctly
+            textarea.style.height = 'auto';
+            
+            // Use a tiny timeout to ensure the DOM has updated the scrollHeight
+            setTimeout(() => {
+                textarea.style.height = textarea.scrollHeight + 'px';
+            }, 0);
+        }
 
+
+        // Load books from PostgreSQL
         async function loadBooks() {
 
             const query =
@@ -432,16 +497,16 @@
         // Open empty form
 
         function openNewBook() {
-
             editingId = null;
-
-            document.getElementById("form-title").textContent =
-                "Add New Book";
-
+            document.getElementById("form-title").textContent = "Add New Book";
             document.getElementById("book-form").reset();
-
-            document.getElementById("modal").style.display =
-                "block";
+            
+            // Clear the large cover image
+            const coverImg = document.getElementById("modal-cover");
+            coverImg.src = "";
+            coverImg.alt = "No cover";
+            
+            document.getElementById("modal").style.display = "block";
         }
 
 
@@ -450,23 +515,33 @@
         function editBook(book) {
             editingId = book.id;
 
+            // Update the large cover image
+            const coverImg = document.getElementById("modal-cover");
+            if (book.cover_id) {
+                coverImg.src = `../covers/${book.cover_id}.jpg`;
+                coverImg.alt = book.title || "Book cover";
+            } else {
+                coverImg.src = "";
+                coverImg.alt = "No cover available";
+            }
+
             document.getElementById("title").value = book.title || "";
             document.getElementById("author").value = book.author || "";
-            document.getElementById("publishing_house").value = book.publishing_house || "";
+            document.getElementById("publisher").value = book.publisher || "";
             document.getElementById("series").value = book.series || "";
             document.getElementById("edition").value = book.edition || "";
             document.getElementById("format").value = book.format || "";
-            
-            // Handle release_date (assuming YYYY-MM-DD format from DB)
             document.getElementById("release_date").value = book.release_date || "";
-
-            document.getElementById("publisher").value = book.publisher || "";
+            document.getElementById("publishing_house").value = book.publishing_house || "";
             document.getElementById("genre").value = book.genre || "";
             document.getElementById("pages").value = book.pages ?? "";
             document.getElementById("isbn").value = book.isbn || "";
             document.getElementById("topics").value = book.topics || "";
             document.getElementById("comments").value = book.comments || "";
             document.getElementById("summary").value = book.summary || "";
+            // Trigger the resize for the new content
+            autoResizeTextarea(document.getElementById("comments"));
+            autoResizeTextarea(document.getElementById("summary"));
 
             document.getElementById("modal").style.display = "block";
         }
@@ -489,12 +564,12 @@
                 const book = {
                     title: document.getElementById("title").value,
                     author: optionalValue("author"),
-                    publishing_house: optionalValue("publishing_house"),
+                    publisher: optionalValue("publisher"),
                     series: optionalValue("series"),
                     edition: optionalValue("edition"),
                     format: optionalValue("format"),
                     release_date: optionalValue("release_date"),
-                    publisher: optionalValue("publisher"),
+                    publishing_house: optionalValue("publishing_house"),
                     genre: optionalValue("genre"),
                     pages: document.getElementById("pages").value ? parseInt(document.getElementById("pages").value) : null,
                     isbn: optionalValue("isbn"),
