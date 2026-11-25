@@ -68,6 +68,11 @@
             background: #46627e;
         }
 
+        .book-row:hover {
+            background-color: #e5e7eb;
+            border-radius: 4px;
+        }
+
         .book-cover {
             width: 55px;
             height: 75px;
@@ -88,10 +93,6 @@
             overflow-wrap: anywhere;
         }
 
-        .book-edit {
-            margin-left: 10px;
-            flex-shrink: 0;
-        }
 
         .modal {
             display: none;
@@ -236,67 +237,69 @@
     <!-- Book form -->
 
     <div id="modal" class="modal">
-
         <div class="modal-content">
-
             <h2 id="form-title">Add Book</h2>
 
-            <form id="book-form">
-                <label>Bookpedia ID *</label>
-                <input id="bookpedia_id" type="number" required>
-
-                <label>Cover ID</label>
-                <input id="cover_id" type="number">
-
-                <label>Title *</label>
-                <input id="title" required>
-
-                <label>Author</label>
-                <input id="author">
-
-                <label>Publishing House</label>
-                <input id="publishing_house">
-
-                <label>Series</label>
-                <input id="series">
-
-                <label>Edition</label>
-                <input id="edition">
-
-                <label>Format</label>
-                <input id="format">
-
-                <label>ISBN</label>
-                <input id="isbn">
-
-                <label>Publisher</label>
-                <input id="publisher">
-
-                <label>Genre</label>
-                <input id="genre">
-
-                <label>Pages</label>
-                <input id="pages" type="number">
-
-                <label>Topics</label>
-                <input id="topics">
-
-                <label>Comments</label>
-                <textarea id="comments"></textarea>
-
-                <label>Summary</label>
-                <textarea id="summary"></textarea>
-
-                <div class="form-buttons">
-                    <button type="submit">Save Book</button>
-
-                    <button type="button" class="cancel" onclick="closeModal()">
-                        Cancel
-                    </button>
+            <!-- New layout: Flex container to put image on the left -->
+            <div style="display: flex; gap: 20px; align-items: flex-start;">
+                
+                <!-- Large Cover Image Container -->
+                <div style="flex-shrink: 0;">
+                    <img id="modal-cover" src="" alt="Cover" style="width: 150px; height: 225px; object-fit: contain; border: 1px solid #ddd; border-radius: 5px; background: #eee;">
                 </div>
 
-            </form>
+                <!-- Form Fields Container -->
+                <form id="book-form" style="flex: 1; margin: 0;">
+                    <label>Title *</label>
+                    <input id="title" required>
 
+                    <label>Author</label>
+                    <input id="author">
+
+                    <label>Publishing House</label>
+                    <input id="publishing_house">
+
+                    <label>Series</label>
+                    <input id="series">
+
+                    <label>Edition</label>
+                    <input id="edition">
+
+                    <label>Format</label>
+                    <input id="format">
+
+                    <label>Release Date</label>
+                    <input id="release_date" type="date">
+
+                    <label>Publisher</label>
+                    <input id="publisher">
+
+                    <label>Genre</label>
+                    <input id="genre">
+
+                    <label>Pages</label>
+                    <input id="pages" type="number">
+
+                    <label>ISBN</label>
+                    <input id="isbn">
+
+                    <label>Topics</label>
+                    <input id="topics">
+
+                    <label>Comments</label>
+                    <textarea id="comments"></textarea>
+
+                    <label>Summary</label>
+                    <textarea id="summary"></textarea>
+
+                    <div class="form-buttons">
+                        <button type="submit">Save Book</button>
+                        <button type="button" class="cancel" onclick="closeModal()">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -345,6 +348,10 @@
                     const row = document.createElement("div");
                     row.className = "book-row";
 
+                    // Make the entire row clickable to trigger editBook
+                    row.style.cursor = "pointer";
+                    row.addEventListener("click", () => editBook(book));
+
                     // Cover image
                     const cover = document.createElement("img");
                     cover.className = "book-cover";
@@ -355,6 +362,8 @@
                         cover.removeAttribute("src");
                         cover.alt = "No cover available";
                     };
+
+
 
                     // Text information
                     const info = document.createElement("div");
@@ -396,15 +405,9 @@
                     // Assemble text information
                     info.append(title, authors, metadata);
 
-                    // Edit button
-                    const edit = document.createElement("button");
-                    edit.className = "book-edit";
-                    edit.textContent = "Edit";
-                    edit.addEventListener("click", () => editBook(book));
-
                     // Assemble row
                     info.append(title, authors, metadata);
-                    row.append(cover, info, edit);
+                    row.append(cover, info);
 
                     container.appendChild(row);
                 });
@@ -445,56 +448,27 @@
         // Open form with existing book data
 
         function editBook(book) {
-
             editingId = book.id;
 
-            document.getElementById("bookpedia_id").value =
-                book.bookpedia_id;
+            document.getElementById("title").value = book.title || "";
+            document.getElementById("author").value = book.author || "";
+            document.getElementById("publishing_house").value = book.publishing_house || "";
+            document.getElementById("series").value = book.series || "";
+            document.getElementById("edition").value = book.edition || "";
+            document.getElementById("format").value = book.format || "";
+            
+            // Handle release_date (assuming YYYY-MM-DD format from DB)
+            document.getElementById("release_date").value = book.release_date || "";
 
-            document.getElementById("cover_id").value =
-                book.cover_id || "";
-                
-            document.getElementById("title").value =
-                book.title || "";
+            document.getElementById("publisher").value = book.publisher || "";
+            document.getElementById("genre").value = book.genre || "";
+            document.getElementById("pages").value = book.pages ?? "";
+            document.getElementById("isbn").value = book.isbn || "";
+            document.getElementById("topics").value = book.topics || "";
+            document.getElementById("comments").value = book.comments || "";
+            document.getElementById("summary").value = book.summary || "";
 
-            document.getElementById("author").value =
-                book.author || "";
-
-            document.getElementById("publishing_house").value =
-                book.publishing_house || "";
-
-            document.getElementById("series").value =
-                book.series || "";
-
-            document.getElementById("edition").value =
-                book.edition || "";
-
-            document.getElementById("format").value =
-                book.format || "";
-
-            document.getElementById("isbn").value =
-                book.isbn || "";
-
-            document.getElementById("publisher").value =
-                book.publisher || "";
-
-            document.getElementById("genre").value =
-                book.genre || "";
-
-            document.getElementById("pages").value =
-                book.pages ?? "";
-
-            document.getElementById("topics").value =
-                book.topics || "";
-
-            document.getElementById("comments").value =
-                book.comments || "";
-
-            document.getElementById("summary").value =
-                book.summary || "";
-
-            document.getElementById("modal").style.display =
-                "block";
+            document.getElementById("modal").style.display = "block";
         }
 
 
@@ -510,33 +484,27 @@
 
         document.getElementById("book-form")
             .addEventListener("submit", async event => {
-
                 event.preventDefault();
 
                 const book = {
-                    bookpedia_id: Number(
-                        document.getElementById("bookpedia_id").value
-                    ),
-
-                    cover_id: document.getElementById("cover_id").value ? parseInt(document.getElementById("cover_id").value) : null,
                     title: document.getElementById("title").value,
                     author: optionalValue("author"),
                     publishing_house: optionalValue("publishing_house"),
                     series: optionalValue("series"),
                     edition: optionalValue("edition"),
                     format: optionalValue("format"),
-                    isbn: optionalValue("isbn"),
+                    release_date: optionalValue("release_date"),
                     publisher: optionalValue("publisher"),
                     genre: optionalValue("genre"),
                     pages: document.getElementById("pages").value ? parseInt(document.getElementById("pages").value) : null,
+                    isbn: optionalValue("isbn"),
                     topics: optionalValue("topics"),
                     comments: optionalValue("comments"),
                     summary: optionalValue("summary"),
-                    release_date: null,
                     date_added: null,
                     extra_fields: {}
                 };
-
+        
 
                 const url = editingId
                     ? `/api/books/${editingId}`
